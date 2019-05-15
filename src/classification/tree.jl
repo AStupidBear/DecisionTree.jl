@@ -41,6 +41,8 @@ module treeclassifier
         labels :: Vector{Int}
     end
 
+    nargs(f) = methods(f).ms[1].nargs - 1
+
     # find an optimal split that satisfy the given constraints
     # (max_depth, min_samples_split, min_purity_increase)
     function _split!(
@@ -146,8 +148,12 @@ module treeclassifier
                 # @assert nr == n_samples - (lo-1) == n_samples - lo + 1
                 if lo-1 >= min_samples_leaf && n_samples - (lo-1) >= min_samples_leaf
                     unsplittable = false
-                    purity = -(nl * purity_function(ncl, nl)
-                             + nr * purity_function(ncr, nr))
+                    if nargs(purity_function) > 2
+                        purity = purity_function(Y, indX, region[1:hi], region[hi+1:end])
+                    else
+                        purity = -(nl * purity_function(ncl, nl)
+                                + nr * purity_function(ncr, nr))
+                    end
                     if purity > best_purity
                         # will take average at the end
                         threshold_lo = last_f
@@ -191,8 +197,10 @@ module treeclassifier
         end
 
         # no splits honor min_samples_leaf
-        @inbounds if (unsplittable
-            || (best_purity / nt + util.entropy(nc, nt) < min_purity_increase))
+        @inbounds if unsplittable || 
+            nargs(purity_function) > 2 ?
+            best_purity < min_purity_increase :
+            best_purity / nt + util.entropy(nc, nt) < min_purity_increase
             node.is_leaf = true
             return
         else
@@ -314,7 +322,8 @@ module treeclassifier
             min_samples_leaf      :: Int,
             min_samples_split     :: Int,
             min_purity_increase   :: Float64,
-            rng=Random.GLOBAL_RNG :: Random.AbstractRNG) where {S, T, U}
+            rng=Random.GLOBAL_RNG :: Random.AbstractRNG,
+            purity_function = util.entropy) where {S, T, U}
 
         n_samples, n_features = size(X)
         list, Y_ = util.assign(Y)
@@ -332,7 +341,7 @@ module treeclassifier
 
         root, indX = _fit(
             X, Y_, W,
-            util.entropy,
+            purity_function,
             length(list),
             max_features,
             max_depth,

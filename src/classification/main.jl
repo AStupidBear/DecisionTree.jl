@@ -78,7 +78,8 @@ function build_tree(
         min_samples_leaf     = 1,
         min_samples_split    = 2,
         min_purity_increase  = 0.0;
-        rng                  = Random.GLOBAL_RNG) where {S, T}
+        rng                  = Random.GLOBAL_RNG,
+        purity_function      = util.entropy) where {S, T}
 
     if max_depth == -1
         max_depth = typemax(Int)
@@ -97,7 +98,8 @@ function build_tree(
         min_samples_leaf    = Int(min_samples_leaf),
         min_samples_split   = Int(min_samples_split),
         min_purity_increase = Float64(min_purity_increase),
-        rng                 = rng)
+        rng                 = rng,
+        purity_function     = purity_function)
 
     return _convert(t.root, t.list, labels[t.labels])
 end
@@ -192,7 +194,8 @@ function build_forest(
         min_samples_leaf    = 1,
         min_samples_split   = 2,
         min_purity_increase = 0.0;
-        rng                 = Random.GLOBAL_RNG) where {S, T}
+        rng                 = Random.GLOBAL_RNG,
+        purity_function     = util.entropy) where {S, T}
 
     if n_trees < 1
         throw("the number of trees must be >= 1")
@@ -220,7 +223,8 @@ function build_forest(
             min_samples_leaf,
             min_samples_split,
             min_purity_increase,
-            rng = rngs)
+            rng = rngs,
+            purity_function = purity_function)
     end
 
     if n_trees == 1
