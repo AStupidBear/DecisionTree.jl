@@ -41,8 +41,6 @@ module treeclassifier
         labels :: Vector{Int}
     end
 
-    nargs(f) = methods(f).ms[1].nargs - 1
-
     # find an optimal split that satisfy the given constraints
     # (max_depth, min_samples_split, min_purity_increase)
     function _split!(
@@ -70,6 +68,7 @@ module treeclassifier
         region = node.region
         n_samples = length(region)
         n_classes = length(nc)
+        treeopt = methods(purity_function).ms[1].nargs > 3
 
         nc[:] .= zero(U)
         @simd for i in region
@@ -89,6 +88,7 @@ module treeclassifier
         features = node.features
         n_features = length(features)
         best_purity = typemin(U)
+        base_purity = -purity_function(Y, indX, region, n_samples)
         best_feature = -1
         threshold_lo = X[1]
         threshold_hi = X[1]
@@ -148,12 +148,8 @@ module treeclassifier
                 # @assert nr == n_samples - (lo-1) == n_samples - lo + 1
                 if lo-1 >= min_samples_leaf && n_samples - (lo-1) >= min_samples_leaf
                     unsplittable = false
-                    if nargs(purity_function) > 2
-                        purity = purity_function(Y, indX, region[1:hi], region[hi+1:end])
-                    else
-                        purity = -(nl * purity_function(ncl, nl)
-                                + nr * purity_function(ncr, nr))
-                    end
+                    purity = treeopt ? -purity_function(Y, indX, region, lo - 1) :
+                            -nl * purity_function(ncl, nl) - nr * purity_function(ncr, nr)
                     if purity > best_purity
                         # will take average at the end
                         threshold_lo = last_f
@@ -198,8 +194,7 @@ module treeclassifier
 
         # no splits honor min_samples_leaf
         @inbounds if unsplittable || 
-            nargs(purity_function) > 2 ?
-            best_purity < min_purity_increase :
+            treeopt ? best_purity - base_purity < min_purity_increase :
             best_purity / nt + util.entropy(nc, nt) < min_purity_increase
             node.is_leaf = true
             return
@@ -219,6 +214,7 @@ module treeclassifier
             #                                 ---------------------
             # (so we partition at threshold_lo instead of node.threshold)
             node.split_at = util.partition!(indX, Xf, threshold_lo, region)
+            treeopt && purity_function(Y, indX, region, node.split_at)
             node.feature = best_feature
             node.features = features[(n_const+1):n_features]
         end

@@ -1,23 +1,26 @@
 using DecisionTree
 using DecisionTree.util: entropy
+using Statistics
 
-x = rand(10000, 10)
-y = [all(z -> z > 0.5, xi) for xi in eachrow(x)]
+x = rand(0x00:0x0f, 1000000, 600)
+y = vec(Int.(mean(x, dims = 2) .> 7))
 
-purity_function = function (y, indX, il, ir)
-    nsl, nsr = [0, 0], [0, 0]
-    for i in il
-        nsl[y[indX[i]]] += 1
-    end
-    for i in ir
-        nsr[y[indX[i]]] += 1
-    end
-    -entropy(nsl, sum(nsl)) * length(il) +
-    -entropy(nsr, sum(nsr)) * length(ir) + 100
-end
-model = build_tree(y, x, purity_function = entropy)
+model = build_tree(y, x) #, purity_function = entropy)
 preds = apply_tree(model, x)
 sum(abs, y .- preds)
+1111111111111
+
+# purity_function = function (y, indX, il, ir)
+#     nsl, nsr = [0, 0], [0, 0]
+#     for i in il
+#         nsl[y[indX[i]]] += 1
+#     end
+#     for i in ir
+#         nsr[y[indX[i]]] += 1
+#     end
+#     -entropy(nsl, sum(nsl)) * length(il) +
+#     -entropy(nsr, sum(nsr)) * length(ir) + 100
+# end
 
 # purity_function = function (y, indX, il, ir)
 #     l = 0f0
