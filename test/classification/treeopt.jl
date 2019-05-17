@@ -5,10 +5,9 @@ using Statistics
 x = rand(0x00:0x0f, 1000000, 600)
 y = vec(Int.(mean(x, dims = 2) .> 7))
 
-model = build_tree(y, x) #, purity_function = entropy)
+model = build_tree(y, x, purity_function = entropy)
 preds = apply_tree(model, x)
 sum(abs, y .- preds)
-1111111111111
 
 # purity_function = function (y, indX, il, ir)
 #     nsl, nsr = [0, 0], [0, 0]
