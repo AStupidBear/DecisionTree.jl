@@ -87,8 +87,8 @@ module treeclassifier
         features = node.features
         n_features = length(features)
         best_purity = typemin(U)
-        
-        base_purity = !treeopt ? typemin(U) : -purity_function(Y, indX, region, n_samples)
+
+        base_purity = !treeopt ? typemin(U) : -purity_function(Y, indX, region, 0)
         best_feature = -1
         threshold_lo = X[1]
         threshold_hi = X[1]
@@ -150,7 +150,6 @@ module treeclassifier
                     unsplittable = false
                     purity = treeopt ? -purity_function(Y, indX, region, lo - 1) :
                             -nl * purity_function(ncl, nl) - nr * purity_function(ncr, nr)
-                    println(purity)
                     if purity > best_purity
                         # will take average at the end
                         threshold_lo = last_f
@@ -199,6 +198,7 @@ module treeclassifier
             treeopt ? best_purity - base_purity < min_purity_increase :
             best_purity / nt + util.entropy(nc, nt) < min_purity_increase
             node.is_leaf = true
+            treeopt && purity_function(Y, indX, region, 0)
             return
         else
             bf = Int(best_feature)
@@ -311,6 +311,7 @@ module treeclassifier
         return (root, indX)
     end
 
+    using Statistics
     function fit(;
             X                     :: Matrix{S},
             Y                     :: Vector{T},
