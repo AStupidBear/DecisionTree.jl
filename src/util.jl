@@ -42,6 +42,7 @@ module util
 
     # returns the entropy of ns/n
     @inline function entropy(ns, n)
+        iszero(n) && return 0.0
         s = 0.0
         @simd for k in ns
             if k > 0

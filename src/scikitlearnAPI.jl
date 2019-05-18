@@ -49,7 +49,7 @@ get_classes(dt::DecisionTreeClassifier) = dt.classes
                          [:pruning_purity_threshold, :max_depth, :min_samples_leaf,
                           :min_samples_split, :min_purity_increase, :rng])
 
-function fit!(dt::DecisionTreeClassifier, X, y)
+function fit!(dt::DecisionTreeClassifier, X, y; purity_function = util.entropy)
     n_samples, n_features = size(X)
     dt.root = build_tree(
         y, X,
@@ -58,7 +58,8 @@ function fit!(dt::DecisionTreeClassifier, X, y)
         dt.min_samples_leaf,
         dt.min_samples_split,
         dt.min_purity_increase;
-        rng = dt.rng)
+        rng = dt.rng,
+        purity_function = purity_function)
 
     dt.root = prune_tree(dt.root, dt.pruning_purity_threshold)
     dt.classes = sort(unique(y))
@@ -213,7 +214,7 @@ get_classes(rf::RandomForestClassifier) = rf.classes
                           :min_samples_leaf, :min_samples_split, :min_purity_increase,
                           :rng])
 
-function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector)
+function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector; purity_function = util.entropy)
     n_samples, n_features = size(X)
     rf.ensemble = build_forest(
         y, X,
@@ -224,7 +225,8 @@ function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector)
         rf.min_samples_leaf,
         rf.min_samples_split,
         rf.min_purity_increase;
-        rng = rf.rng)
+        rng = rf.rng, 
+        purity_function = purity_function)
     rf.classes = sort(unique(y))
     rf
 end

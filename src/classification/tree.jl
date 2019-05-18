@@ -64,11 +64,10 @@ module treeclassifier
             Yf                  :: Vector{Int},
             Wf                  :: Vector{U},
             rng                 :: Random.AbstractRNG) where {S, U}
-
+        treeopt = methods(purity_function).ms[1].nargs > 3
         region = node.region
         n_samples = length(region)
         n_classes = length(nc)
-        treeopt = methods(purity_function).ms[1].nargs > 3
 
         nc[:] .= zero(U)
         @simd for i in region
@@ -77,9 +76,9 @@ module treeclassifier
         nt = sum(nc)
         node.label = argmax(nc)
         if (min_samples_leaf * 2 >  n_samples
-         || min_samples_split    >  n_samples
-         || max_depth            <= node.depth
-         || nc[node.label]       == nt)
+            || min_samples_split    >  n_samples
+            || max_depth            <= node.depth
+            || nc[node.label]       == nt && !treeopt)
             node.is_leaf = true
             return
         end
@@ -88,7 +87,8 @@ module treeclassifier
         features = node.features
         n_features = length(features)
         best_purity = typemin(U)
-        base_purity = -purity_function(Y, indX, region, n_samples)
+        
+        base_purity = !treeopt ? typemin(U) : -purity_function(Y, indX, region, n_samples)
         best_feature = -1
         threshold_lo = X[1]
         threshold_hi = X[1]
@@ -150,6 +150,7 @@ module treeclassifier
                     unsplittable = false
                     purity = treeopt ? -purity_function(Y, indX, region, lo - 1) :
                             -nl * purity_function(ncl, nl) - nr * purity_function(ncr, nr)
+                    println(purity)
                     if purity > best_purity
                         # will take average at the end
                         threshold_lo = last_f
@@ -192,6 +193,7 @@ module treeclassifier
             indf += 1
         end
 
+        @show unsplittable, best_purity, base_purity
         # no splits honor min_samples_leaf
         @inbounds if unsplittable || 
             treeopt ? best_purity - base_purity < min_purity_increase :
