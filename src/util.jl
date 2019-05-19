@@ -167,6 +167,24 @@ module util
         return v
     end
 
+    function q_bi_sort!(v::Array{UInt8}, w, lo, hi, offset)
+        v′, w′ = v[lo:hi], w[(lo + offset):(hi + offset)]
+        vmin, vmax = extrema(v)
+        cnt = zeros(Int, vmax - vmin + 1)
+        @inbounds for i in lo:hi
+            cnt[v[i] - vmin + 1] += 1
+        end
+        cumsum!(cnt, cnt)
+        @inbounds for i in hi:-1:lo
+            i′ = i - lo + 1
+            l = v′[i′] - vmin + 1
+            j = cnt[l]
+            v[j] = v′[i′]
+            w[j + offset] = w′[i′]
+            cnt[l] -= 1
+        end
+        return v
+    end
 
     # The code function below is a small port from numpy's library
     # library which is distributed under the 3-Clause BSD license.
