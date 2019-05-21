@@ -6,12 +6,13 @@ module util
     export gini, entropy, zero_one, q_bi_sort!, hypergeometric
 
     function assign(Y :: Vector{T}, list :: Vector{T}) where T
-        dict = Dict{T, Int}()
+        _T = T <: Integer ? T : Int
+        dict = Dict{T, _T}()
         @simd for i in 1:length(list)
             @inbounds dict[list[i]] = i
         end
 
-        _Y = Array{Int}(undef, length(Y))
+        _Y = Array{_T}(undef, length(Y))
         @simd for i in 1:length(Y)
             @inbounds _Y[i] = dict[Y[i]]
         end

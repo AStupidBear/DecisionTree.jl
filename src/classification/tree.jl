@@ -45,7 +45,7 @@ module treeclassifier
     # (max_depth, min_samples_split, min_purity_increase)
     function _split!(
             X                   :: Matrix{S},   # the feature array
-            Y                   :: Vector{Int}, # the label array
+            Y                   :: Vector{T}, # the label array
             W                   :: Vector{U},   # the weight vector
             purity_function     :: Function,
             node                :: NodeMeta{S}, # the node to split
@@ -61,7 +61,7 @@ module treeclassifier
             ncl                 :: Vector{U},   # ncl maintains the counts of labels on the left
             ncr                 :: Vector{U},   # ncr maintains the counts of labels on the right
             Xf                  :: Vector{S},
-            Yf                  :: Vector{Int},
+            Yf                  :: Vector{T},
             Wf                  :: Vector{U},
             rng                 :: Random.AbstractRNG) where {S, U}
         treeopt = methods(purity_function).ms[1].nargs > 3
@@ -266,7 +266,7 @@ module treeclassifier
 
     function _fit(
             X                     :: Matrix{S},
-            Y                     :: Vector{Int},
+            Y                     :: Vector{T},
             W                     :: Vector{U},
             loss                  :: Function,
             n_classes             :: Int,
@@ -284,7 +284,7 @@ module treeclassifier
         ncr = Array{U}(undef, n_classes)
         Wf  = Array{U}(undef, n_samples)
         Xf  = Array{S}(undef, n_samples)
-        Yf  = Array{Int}(undef, n_samples)
+        Yf  = Array{T}(undef, n_samples)
 
         indX = collect(1:n_samples)
         root = NodeMeta{S}(collect(1:n_features), 1:n_samples, 0)
