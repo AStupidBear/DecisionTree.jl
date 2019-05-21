@@ -63,7 +63,7 @@ module treeclassifier
             Xf                  :: Vector{S},
             Yf                  :: Vector{T},
             Wf                  :: Vector{U},
-            rng                 :: Random.AbstractRNG) where {S, U}
+            rng                 :: Random.AbstractRNG) where {S, T, U}
         treeopt = methods(purity_function).ms[1].nargs > 3
         region = node.region
         n_samples = length(region)
@@ -275,7 +275,7 @@ module treeclassifier
             min_samples_leaf      :: Int,
             min_samples_split     :: Int,
             min_purity_increase   :: Float64,
-            rng=Random.GLOBAL_RNG :: Random.AbstractRNG) where {S, U}
+            rng=Random.GLOBAL_RNG :: Random.AbstractRNG) where {S, T, U}
 
         n_samples, n_features = size(X)
 
