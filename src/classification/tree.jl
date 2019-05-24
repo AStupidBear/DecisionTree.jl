@@ -192,7 +192,7 @@ module treeclassifier
             indf += 1
         end
 
-        @show unsplittable, best_purity, base_purity
+        @show n_const / length(features), unsplittable, best_purity, base_purity
         # no splits honor min_samples_leaf
         @inbounds if unsplittable || 
             treeopt ? best_purity - base_purity < min_purity_increase :
@@ -326,6 +326,8 @@ module treeclassifier
 
         n_samples, n_features = size(X)
         list, Y_ = util.assign(Y)
+        treeopt = methods(purity_function).ms[1].nargs > 3
+        Y_ = treeopt ? Y : Y_
         if W == nothing
             W = fill(1.0, n_samples)
         end
