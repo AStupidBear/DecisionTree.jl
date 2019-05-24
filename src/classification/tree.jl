@@ -192,7 +192,7 @@ module treeclassifier
             indf += 1
         end
 
-        @show n_const / length(features), unsplittable, best_purity, base_purity
+        @printf("best_purity: %.4g, base_purity: %.4g\n", best_purity, base_purity)
         # no splits honor min_samples_leaf
         @inbounds if unsplittable || 
             treeopt ? best_purity - base_purity < min_purity_increase :
