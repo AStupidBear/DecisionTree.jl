@@ -7,6 +7,7 @@
 module treeclassifier
     include("../util.jl")
     import Random
+    using Printf
 
     export fit, fit_zero_one
 
