@@ -40,7 +40,9 @@ function _convert(
         labels :: Vector{T}) where {S, T}
 
     if node.is_leaf
-        return Leaf{T}(list[node.label], labels[node.region])
+        values = labels[node.region]
+        majority = majority_vote(values)
+        return Leaf{T}(majority, values)
     else
         left = _convert(node.l, list, labels)
         right = _convert(node.r, list, labels)
