@@ -328,7 +328,7 @@ module treeclassifier
         n_samples, n_features = size(X)
         list, Y_ = util.assign(Y)
         treeopt = methods(purity_function).ms[1].nargs > 3
-        Y_ = treeopt ? Y : Y_
+        Y_ = treeopt ? fill!(Y, median(Y)) : Y_
         if W == nothing
             W = fill(1.0, n_samples)
         end
