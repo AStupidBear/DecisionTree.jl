@@ -81,6 +81,9 @@ module treeclassifier
             || max_depth            <= node.depth
             || nc[node.label]       == nt && !treeopt)
             node.is_leaf = true
+            min_samples_leaf * 2 > n_samples && println("min_samples_leaf * 2 > n_samples")
+            min_samples_split > n_samples && println("min_samples_split > n_samples")
+            max_depth <= node.depth && println("max_depth <= node.depth")
             return
         end
 
@@ -200,6 +203,8 @@ module treeclassifier
             best_purity / nt + util.entropy(nc, nt) < min_purity_increase
             node.is_leaf = true
             treeopt && purity_function(Y, indX, region, 0)
+            unsplittable ? println("node is unsplittable") :
+            println("purity increase is not significant")
             return
         else
             bf = Int(best_feature)
