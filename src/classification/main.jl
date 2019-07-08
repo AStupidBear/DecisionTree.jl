@@ -216,8 +216,7 @@ function build_forest(
 
     t_samples = length(labels) ÷ interval
     rngs = mk_rng(rng)::Random.AbstractRNG
-    # forest = Distributed.@distributed (vcat) 
-    for i in 1:n_trees
+    forest = Distributed.@distributed (vcat) for i in 1:n_trees
         @info("building tree $i...")
         cinds = randsubseq(rngs, 1:t_samples, partial_sampling)
         inds = vec(LinearIndices((interval, t_samples))[:, cinds])
