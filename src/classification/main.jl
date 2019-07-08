@@ -75,6 +75,7 @@ end
 function build_tree(
         labels              :: Vector{T},
         features            :: Matrix{S},
+        cinds                = 1:length(labels),
         n_subfeatures        = 0,
         max_depth            = -1,
         min_samples_leaf     = 1,
@@ -95,6 +96,7 @@ function build_tree(
         X                   = features,
         Y                   = labels,
         W                   = nothing,
+        cinds               = cinds,
         max_features        = Int(n_subfeatures),
         max_depth           = Int(max_depth),
         min_samples_leaf    = Int(min_samples_leaf),
@@ -213,16 +215,16 @@ function build_forest(
     end
 
     t_samples = length(labels) ÷ interval
-    n_samples = floor(Int, partial_sampling * t_samples)
-
     rngs = mk_rng(rng)::Random.AbstractRNG
-    forest = Distributed.@distributed (vcat) for i in 1:n_trees
+    # forest = Distributed.@distributed (vcat) 
+    for i in 1:n_trees
         @info("building tree $i...")
-        inds = LinearIndices((interval, t_samples))
-        inds = vec(inds[:, rand(rngs, 1:t_samples, n_samples)])
+        cinds = randsubseq(rngs, 1:t_samples, partial_sampling)
+        inds = vec(LinearIndices((interval, t_samples))[:, cinds])
         build_tree(
             labels[inds],
             features[inds,:],
+            cinds,
             n_subfeatures,
             max_depth,
             min_samples_leaf,

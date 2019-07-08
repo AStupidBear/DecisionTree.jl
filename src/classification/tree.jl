@@ -46,8 +46,9 @@ module treeclassifier
     # (max_depth, min_samples_split, min_purity_increase)
     function _split!(
             X                   :: Matrix{S},   # the feature array
-            Y                   :: Vector{T}, # the label array
+            Y                   :: Vector{T},   # the label array
             W                   :: Vector{U},   # the weight vector
+            cinds               :: I,           # column indices
             purity_function     :: Function,
             node                :: NodeMeta{S}, # the node to split
             max_features        :: Int,         # number of features to consider
@@ -64,7 +65,7 @@ module treeclassifier
             Xf                  :: Vector{S},
             Yf                  :: Vector{T},
             Wf                  :: Vector{U},
-            rng                 :: Random.AbstractRNG) where {S, T, U}
+            rng                 :: Random.AbstractRNG) where {S, T, U, I}
         treeopt = methods(purity_function).ms[1].nargs > 3
         region = node.region
         n_samples = length(region)
@@ -92,7 +93,7 @@ module treeclassifier
         n_features = length(features)
         best_purity = typemin(U)
 
-        base_purity = !treeopt ? typemin(U) : -purity_function(Y, indX, region, 0, rng)
+        base_purity = !treeopt ? typemin(U) : -purity_function(Y, indX, region, 0, cinds)
         best_feature = -1
         threshold_lo = X[1]
         threshold_hi = X[1]
@@ -152,7 +153,7 @@ module treeclassifier
                 # @assert nr == n_samples - (lo-1) == n_samples - lo + 1
                 if lo-1 >= min_samples_leaf && n_samples - (lo-1) >= min_samples_leaf
                     unsplittable = false
-                    purity = treeopt ? -purity_function(Y, indX, region, lo - 1, rng) :
+                    purity = treeopt ? -purity_function(Y, indX, region, lo - 1, cinds) :
                             -nl * purity_function(ncl, nl) - nr * purity_function(ncr, nr)
                     if purity > best_purity
                         # will take average at the end
@@ -202,7 +203,7 @@ module treeclassifier
             treeopt ? best_purity - base_purity < min_purity_increase :
             best_purity / nt + util.entropy(nc, nt) < min_purity_increase
             node.is_leaf = true
-            treeopt && purity_function(Y, indX, region, 0, rng)
+            treeopt && purity_function(Y, indX, region, 0, cinds)
             unsplittable ? println("node is unsplittable") :
             println("purity increase is not significant")
             return
@@ -222,7 +223,7 @@ module treeclassifier
             #                                 ---------------------
             # (so we partition at threshold_lo instead of node.threshold)
             node.split_at = util.partition!(indX, Xf, threshold_lo, region)
-            treeopt && purity_function(Y, indX, region, node.split_at, rng)
+            treeopt && purity_function(Y, indX, region, node.split_at, cinds)
             node.feature = best_feature
             node.features = features[(n_const+1):n_features]
         end
@@ -274,6 +275,7 @@ module treeclassifier
             X                     :: Matrix{S},
             Y                     :: Vector{T},
             W                     :: Vector{U},
+            cinds                 :: I,
             loss                  :: Function,
             n_classes             :: Int,
             max_features          :: Int,
@@ -281,7 +283,7 @@ module treeclassifier
             min_samples_leaf      :: Int,
             min_samples_split     :: Int,
             min_purity_increase   :: Float64,
-            rng=Random.GLOBAL_RNG :: Random.AbstractRNG) where {S, T, U}
+            rng=Random.GLOBAL_RNG :: Random.AbstractRNG) where {S, T, U, I}
 
         n_samples, n_features = size(X)
 
@@ -298,7 +300,7 @@ module treeclassifier
         @inbounds while length(stack) > 0
             node = pop!(stack)
             _split!(
-                X, Y, W,
+                X, Y, W, cinds,
                 loss, node,
                 max_features,
                 max_depth,
@@ -322,13 +324,14 @@ module treeclassifier
             X                     :: Matrix{S},
             Y                     :: Vector{T},
             W                     :: Union{Nothing, Vector{U}},
+            cinds                 :: I,
             max_features          :: Int,
             max_depth             :: Int,
             min_samples_leaf      :: Int,
             min_samples_split     :: Int,
             min_purity_increase   :: Float64,
             rng=Random.GLOBAL_RNG :: Random.AbstractRNG,
-            purity_function = util.entropy) where {S, T, U}
+            purity_function = util.entropy) where {S, T, U, I}
 
         n_samples, n_features = size(X)
         list, Y_ = util.assign(Y)
@@ -347,7 +350,7 @@ module treeclassifier
             min_purity_increase)
 
         root, indX = _fit(
-            X, Y_, W,
+            X, Y_, W, cinds,
             purity_function,
             length(list),
             max_features,
