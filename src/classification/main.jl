@@ -84,9 +84,9 @@ function build_tree(
         rng                  = Random.GLOBAL_RNG,
         purity_function      = util.entropy) where {S, T}
 
-        if max_depth == -1
-            max_depth = typemax(Int)
-        end
+    if max_depth == -1
+        max_depth = typemax(Int)
+    end
     if n_subfeatures == 0
         n_subfeatures = size(features, 2)
     end

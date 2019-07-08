@@ -52,7 +52,7 @@ get_classes(dt::DecisionTreeClassifier) = dt.classes
 function fit!(dt::DecisionTreeClassifier, X, y; purity_function = util.entropy)
     n_samples, n_features = size(X)
     dt.root = build_tree(
-        y, X,
+        y, X, 1:length(y),
         dt.n_subfeatures,
         dt.max_depth,
         dt.min_samples_leaf,
