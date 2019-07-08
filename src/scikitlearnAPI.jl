@@ -214,7 +214,7 @@ get_classes(rf::RandomForestClassifier) = rf.classes
                           :min_samples_leaf, :min_samples_split, :min_purity_increase,
                           :rng])
 
-function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector; purity_function = util.entropy)
+function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector; purity_function = util.entropy, interval = 1)
     n_samples, n_features = size(X)
     rf.ensemble = build_forest(
         y, X,
@@ -226,7 +226,8 @@ function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector; purity_function 
         rf.min_samples_split,
         rf.min_purity_increase;
         rng = rf.rng, 
-        purity_function = purity_function)
+        purity_function = purity_function,
+        interval = interval)
     rf.classes = sort(unique(y))
     rf
 end

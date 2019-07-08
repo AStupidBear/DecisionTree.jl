@@ -81,9 +81,9 @@ module treeclassifier
             || max_depth            <= node.depth
             || nc[node.label]       == nt && !treeopt)
             node.is_leaf = true
-            min_samples_leaf * 2 > n_samples && println("min_samples_leaf * 2 > n_samples")
-            min_samples_split > n_samples && println("min_samples_split > n_samples")
-            max_depth <= node.depth && println("max_depth <= node.depth")
+            min_samples_leaf * 2 > n_samples && @debug("min_samples_leaf * 2 > n_samples")
+            min_samples_split > n_samples && @debug("min_samples_split > n_samples")
+            max_depth <= node.depth && @debug("max_depth <= node.depth")
             return
         end
 
@@ -92,7 +92,7 @@ module treeclassifier
         n_features = length(features)
         best_purity = typemin(U)
 
-        base_purity = !treeopt ? typemin(U) : -purity_function(Y, indX, region, 0)
+        base_purity = !treeopt ? typemin(U) : -purity_function(Y, indX, region, 0, rng)
         best_feature = -1
         threshold_lo = X[1]
         threshold_hi = X[1]
@@ -152,7 +152,7 @@ module treeclassifier
                 # @assert nr == n_samples - (lo-1) == n_samples - lo + 1
                 if lo-1 >= min_samples_leaf && n_samples - (lo-1) >= min_samples_leaf
                     unsplittable = false
-                    purity = treeopt ? -purity_function(Y, indX, region, lo - 1) :
+                    purity = treeopt ? -purity_function(Y, indX, region, lo - 1, rng) :
                             -nl * purity_function(ncl, nl) - nr * purity_function(ncr, nr)
                     if purity > best_purity
                         # will take average at the end
@@ -196,15 +196,15 @@ module treeclassifier
             indf += 1
         end
 
-        @printf("best_purity: %.4g, base_purity: %.4g\n", best_purity, base_purity)
+        @debug("best_purity: %.4g, base_purity: %.4g\n", best_purity, base_purity)
         # no splits honor min_samples_leaf
         @inbounds if unsplittable || 
             treeopt ? best_purity - base_purity < min_purity_increase :
             best_purity / nt + util.entropy(nc, nt) < min_purity_increase
             node.is_leaf = true
-            treeopt && purity_function(Y, indX, region, 0)
-            unsplittable ? println("node is unsplittable") :
-            println("purity increase is not significant")
+            treeopt && purity_function(Y, indX, region, 0, rng)
+            unsplittable ? @debug("node is unsplittable") :
+            @debug("purity increase is not significant")
             return
         else
             bf = Int(best_feature)
@@ -222,7 +222,7 @@ module treeclassifier
             #                                 ---------------------
             # (so we partition at threshold_lo instead of node.threshold)
             node.split_at = util.partition!(indX, Xf, threshold_lo, region)
-            treeopt && purity_function(Y, indX, region, node.split_at)
+            treeopt && purity_function(Y, indX, region, node.split_at, rng)
             node.feature = best_feature
             node.features = features[(n_const+1):n_features]
         end

@@ -197,7 +197,8 @@ function build_forest(
         min_samples_split   = 2,
         min_purity_increase = 0.0;
         rng                 = Random.GLOBAL_RNG,
-        purity_function     = util.entropy) where {S, T}
+        purity_function     = util.entropy,
+        interval            = 1) where {S, T}
 
     if n_trees < 1
         throw("the number of trees must be >= 1")
@@ -211,12 +212,14 @@ function build_forest(
         n_subfeatures = round(Int, sqrt(n_features))
     end
 
-    t_samples = length(labels)
+    t_samples = length(labels) ÷ interval
     n_samples = floor(Int, partial_sampling * t_samples)
 
     rngs = mk_rng(rng)::Random.AbstractRNG
     forest = Distributed.@distributed (vcat) for i in 1:n_trees
-        inds = rand(rngs, 1:t_samples, n_samples)
+        @info("building tree $i...")
+        inds = LinearIndices((interval, t_samples))
+        inds = vec(inds[:, rand(rngs, 1:t_samples, n_samples)])
         build_tree(
             labels[inds],
             features[inds,:],
