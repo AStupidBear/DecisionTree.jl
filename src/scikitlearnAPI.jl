@@ -49,7 +49,7 @@ get_classes(dt::DecisionTreeClassifier) = dt.classes
                          [:pruning_purity_threshold, :max_depth, :min_samples_leaf,
                           :min_samples_split, :min_purity_increase, :rng])
 
-function fit!(dt::DecisionTreeClassifier, X, y; purity_function = util.entropy)
+function fit!(dt::DecisionTreeClassifier, X, y; purity_function = util.entropy, interval = 1)
     n_samples, n_features = size(X)
     dt.root = build_tree(
         y, X, 1:length(y),
