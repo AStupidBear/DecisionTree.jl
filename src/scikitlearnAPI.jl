@@ -149,7 +149,6 @@ function fit!(dt::DecisionTreeRegressor, X::Matrix, y::Vector)
         dt.min_samples_split,
         dt.min_purity_increase;
         rng = dt.rng)
-    dt.pruning_purity_threshold
     dt.root = prune_tree(dt.root, dt.pruning_purity_threshold)
     dt
 end
@@ -194,6 +193,7 @@ Implements `fit!`, `predict`, `predict_proba`, `get_classes`
 """
 mutable struct RandomForestClassifier <: BaseClassifier
     beam_width::Int
+    pruning_purity_threshold::Float64
     n_subfeatures::Int
     n_trees::Int
     partial_sampling::Float64
@@ -204,17 +204,17 @@ mutable struct RandomForestClassifier <: BaseClassifier
     rng::Random.AbstractRNG
     ensemble::Union{Ensemble, Nothing}
     classes::Union{Vector, Nothing}
-    RandomForestClassifier(; beam_width=1, n_subfeatures=-1, n_trees=10, partial_sampling=0.7,
-                           max_depth=-1, min_samples_leaf=1, min_samples_split=2, min_purity_increase=0.0,
-                           rng=Random.GLOBAL_RNG, ensemble=nothing, classes=nothing) =
-        new(beam_width, n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split,
-            min_purity_increase, mk_rng(rng), ensemble, classes)
+    RandomForestClassifier(; beam_width=1, pruning_purity_threshold = 1.0, n_subfeatures=-1, n_trees=10, 
+                            partial_sampling=0.7, max_depth=-1, min_samples_leaf=1, min_samples_split=2, 
+                            min_purity_increase=0.0, rng=Random.GLOBAL_RNG, ensemble=nothing, classes=nothing) =
+        new(beam_width, pruning_purity_threshold,n_subfeatures, n_trees, partial_sampling, max_depth, 
+            min_samples_leaf, min_samples_split, min_purity_increase, mk_rng(rng), ensemble, classes)
 end
 
 get_classes(rf::RandomForestClassifier) = rf.classes
 @declare_hyperparameters(RandomForestClassifier,
-                         [:beam_width, :n_subfeatures, :n_trees, :partial_sampling, :max_depth,
-                          :min_samples_leaf, :min_samples_split, :min_purity_increase, :rng])
+                         [:beam_width, :pruning_purity_threshold, :n_subfeatures, :n_trees, :partial_sampling, 
+                         :max_depth, :min_samples_leaf, :min_samples_split, :min_purity_increase, :rng])
 
 function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector; purity_function = util.entropy, interval = 1, beam_width = 1)
     n_samples, n_features = size(X)
@@ -231,6 +231,9 @@ function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector; purity_function 
         rng = rf.rng, 
         purity_function = purity_function,
         interval = interval)
+    map!(rf.ensemble.trees, rf.ensemble.trees) do tree
+        prune_tree(tree, rf.pruning_purity_threshold)
+    end
     rf.classes = sort(unique(y))
     rf
 end

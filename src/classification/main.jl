@@ -218,6 +218,11 @@ function build_forest(
         n_subfeatures = round(Int, sqrt(n_features))
     end
 
+    if n_trees == 1
+        n_subfeatures = n_features
+        partial_sampling = 1.0
+    end
+
     t_samples = length(labels) ÷ interval
     rngs = mk_rng(rng)::Random.AbstractRNG
     forest = Distributed.@distributed (vcat) for i in 1:n_trees
@@ -226,7 +231,7 @@ function build_forest(
         inds = vec(LinearIndices((interval, t_samples))[:, cinds])
         build_tree(
             labels[inds],
-            features[inds,:],
+            features[inds, :],
             cinds,
             beam_width,
             n_subfeatures,
@@ -238,11 +243,7 @@ function build_forest(
             purity_function = purity_function)
     end
 
-    if n_trees == 1
-        return Ensemble{S, T}([forest])
-    else
-        return Ensemble{S, T}(forest)
-    end
+    Ensemble{S, T}(forest)
 end
 
 function apply_forest(forest::Ensemble{S, T}, features::Vector{S}) where {S, T}
@@ -255,7 +256,7 @@ function apply_forest(forest::Ensemble{S, T}, features::Vector{S}) where {S, T}
     if T <: Float64
         return mean(votes)
     else
-        return majority_vote(votes)
+        return round(T, mean(votes))
     end
 end
 
