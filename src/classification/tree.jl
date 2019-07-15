@@ -213,7 +213,6 @@ module treeclassifier
         else
             function (node, Y, indX, (best_feature, threshold_lo, threshold_hi))
                 bf = Int(best_feature)
-                # println(size(X), size(Xf))
                 @simd for i in 1:n_samples
                     Xf[i] = X[indX[i + r_start], bf]
                 end
@@ -338,7 +337,7 @@ module treeclassifier
             end
             beam_purities = vcat([push!.(p, i) for (i, p) in enumerate(purities)]...)
             beam_purities = sort(beam_purities, by = first, rev = true)[1:beam_width]
-            println("beam_purities: ", trunc.(first.(beam_purities), digits = 2))
+            beam_width > 1 && println("beam_purities: ", first.(beam_purities))
             Ys, indXs, roots, stacks, nodes = map(beam_purities) do (purity, conf, i)
                 root = deepcopy(roots[i])
                 node = findnode(root, nodes[i])
