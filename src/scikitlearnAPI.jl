@@ -29,6 +29,7 @@ Hyperparameters:
 Implements `fit!`, `predict`, `predict_proba`, `get_classes`
 """
 mutable struct DecisionTreeClassifier <: BaseClassifier
+    beam_width::Int
     pruning_purity_threshold::Float64 # no pruning if 1.0
     max_depth::Int
     min_samples_leaf::Int
@@ -38,21 +39,22 @@ mutable struct DecisionTreeClassifier <: BaseClassifier
     rng::Random.Random.AbstractRNG
     root::Union{LeafOrNode, Nothing}
     classes::Union{Vector, Nothing}
-    DecisionTreeClassifier(;pruning_purity_threshold=1.0, max_depth=-1, min_samples_leaf=1, min_samples_split=2,
+    DecisionTreeClassifier(;beam_width=1, pruning_purity_threshold=1.0, max_depth=-1, min_samples_leaf=1, min_samples_split=2,
                            min_purity_increase=0.0, n_subfeatures=0, rng=Random.GLOBAL_RNG, root=nothing, classes=nothing) =
-        new(pruning_purity_threshold, max_depth, min_samples_leaf, min_samples_split,
+        new(beam_width, pruning_purity_threshold, max_depth, min_samples_leaf, min_samples_split,
             min_purity_increase, n_subfeatures, mk_rng(rng), root, classes)
 end
 
 get_classes(dt::DecisionTreeClassifier) = dt.classes
 @declare_hyperparameters(DecisionTreeClassifier,
-                         [:pruning_purity_threshold, :max_depth, :min_samples_leaf,
+                         [:beam_width, :pruning_purity_threshold, :max_depth, :min_samples_leaf,
                           :min_samples_split, :min_purity_increase, :rng])
 
 function fit!(dt::DecisionTreeClassifier, X, y; purity_function = util.entropy, interval = 1)
     n_samples, n_features = size(X)
     dt.root = build_tree(
         y, X, 1:length(y),
+        dt.beam_width,
         dt.n_subfeatures,
         dt.max_depth,
         dt.min_samples_leaf,
@@ -191,6 +193,7 @@ Hyperparameters:
 Implements `fit!`, `predict`, `predict_proba`, `get_classes`
 """
 mutable struct RandomForestClassifier <: BaseClassifier
+    beam_width::Int
     n_subfeatures::Int
     n_trees::Int
     partial_sampling::Float64
@@ -201,23 +204,23 @@ mutable struct RandomForestClassifier <: BaseClassifier
     rng::Random.AbstractRNG
     ensemble::Union{Ensemble, Nothing}
     classes::Union{Vector, Nothing}
-    RandomForestClassifier(; n_subfeatures=-1, n_trees=10, partial_sampling=0.7,
+    RandomForestClassifier(; beam_width=1, n_subfeatures=-1, n_trees=10, partial_sampling=0.7,
                            max_depth=-1, min_samples_leaf=1, min_samples_split=2, min_purity_increase=0.0,
                            rng=Random.GLOBAL_RNG, ensemble=nothing, classes=nothing) =
-        new(n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split,
+        new(beam_width, n_subfeatures, n_trees, partial_sampling, max_depth, min_samples_leaf, min_samples_split,
             min_purity_increase, mk_rng(rng), ensemble, classes)
 end
 
 get_classes(rf::RandomForestClassifier) = rf.classes
 @declare_hyperparameters(RandomForestClassifier,
-                         [:n_subfeatures, :n_trees, :partial_sampling, :max_depth,
-                          :min_samples_leaf, :min_samples_split, :min_purity_increase,
-                          :rng])
+                         [:beam_width, :n_subfeatures, :n_trees, :partial_sampling, :max_depth,
+                          :min_samples_leaf, :min_samples_split, :min_purity_increase, :rng])
 
-function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector; purity_function = util.entropy, interval = 1)
+function fit!(rf::RandomForestClassifier, X::Matrix, y::Vector; purity_function = util.entropy, interval = 1, beam_width = 1)
     n_samples, n_features = size(X)
     rf.ensemble = build_forest(
         y, X,
+        rf.beam_width,
         rf.n_subfeatures,
         rf.n_trees,
         rf.partial_sampling,

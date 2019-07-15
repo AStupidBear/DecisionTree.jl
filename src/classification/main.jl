@@ -1,5 +1,5 @@
 # Utilities
-
+using Printf
 include("tree.jl")
 
 # Returns a dict ("Label1" => 1, "Label2" => 2, "Label3" => 3, ...)
@@ -76,6 +76,7 @@ function build_tree(
         labels              :: Vector{T},
         features            :: Matrix{S},
         cinds                = 1:length(labels),
+        beam_width        = 1,
         n_subfeatures        = 0,
         max_depth            = -1,
         min_samples_leaf     = 1,
@@ -97,6 +98,7 @@ function build_tree(
         Y                   = labels,
         W                   = nothing,
         cinds               = cinds,
+        beam_width          = beam_width,
         max_features        = Int(n_subfeatures),
         max_depth           = Int(max_depth),
         min_samples_leaf    = Int(min_samples_leaf),
@@ -122,6 +124,7 @@ function prune_tree(tree::LeafOrNode{S, T}, purity_thresh=1.0) where {S, T}
             matches = findall(all_labels .== majority)
             purity = length(matches) / length(all_labels)
             if purity >= purity_thresh
+                @printf("merge node for purity:%.2f >= %.2f\n", purity, purity_thresh)
                 return Leaf{T}(majority, all_labels)
             else
                 return tree
@@ -191,6 +194,7 @@ apply_tree_proba(tree::LeafOrNode{S, T}, features::Matrix{S}, labels) where {S, 
 function build_forest(
         labels              :: Vector{T},
         features            :: Matrix{S},
+        beam_width          = 1,
         n_subfeatures       = -1,
         n_trees             = 10,
         partial_sampling    = 0.7,
@@ -224,6 +228,7 @@ function build_forest(
             labels[inds],
             features[inds,:],
             cinds,
+            beam_width,
             n_subfeatures,
             max_depth,
             min_samples_leaf,

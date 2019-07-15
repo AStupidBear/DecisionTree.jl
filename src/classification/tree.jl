@@ -77,16 +77,6 @@ module treeclassifier
         end
         nt = sum(nc)
         node.label = argmax(nc)
-        if (min_samples_leaf * 2 >  n_samples
-            || min_samples_split    >  n_samples
-            || max_depth            <= node.depth
-            || nc[node.label]       == nt && !treeopt)
-            node.is_leaf = true
-            min_samples_leaf * 2 > n_samples && println("min_samples_leaf * 2 > n_samples")
-            min_samples_split > n_samples && println("min_samples_split > n_samples")
-            max_depth <= node.depth && println("max_depth <= node.depth")
-            return
-        end
 
         r_start = region.start - 1
         features = node.features
@@ -97,6 +87,17 @@ module treeclassifier
         best_feature = -1
         threshold_lo = X[1]
         threshold_hi = X[1]
+
+        if (min_samples_leaf * 2 >  n_samples
+            || min_samples_split    >  n_samples
+            || max_depth            <= node.depth
+            || nc[node.label]       == nt && !treeopt)
+            node.is_leaf = true
+            min_samples_leaf * 2 > n_samples && println("min_samples_leaf * 2 > n_samples")
+            min_samples_split > n_samples && println("min_samples_split > n_samples")
+            max_depth <= node.depth && println("max_depth <= node.depth")
+            return (a...) -> nothing, [[base_purity, ()]]
+        end
 
         indf = 1
         # the number of new constants found during this split
@@ -112,6 +113,7 @@ module treeclassifier
         # what the non constant features are, we can sample at 'non_consts_used'
         # non constant features instead of going through every feature randomly.
         non_consts_used = util.hypergeometric(n_features, total_features-n_features, max_features, rng)
+        purities = []
         @inbounds while (unsplittable || indf <= non_consts_used) && indf <= n_features
             feature = let
                 indr = rand(rng, indf:n_features)
@@ -155,6 +157,7 @@ module treeclassifier
                     unsplittable = false
                     purity = treeopt ? -purity_function(Y, indX, region, lo - 1, cinds) :
                             -nl * purity_function(ncl, nl) - nr * purity_function(ncr, nr)
+                    push!(purities, [purity, (feature, last_f, curr_f)])
                     if purity > best_purity
                         # will take average at the end
                         threshold_lo = last_f
@@ -206,29 +209,30 @@ module treeclassifier
             treeopt && purity_function(Y, indX, region, 0, cinds)
             unsplittable ? println("node is unsplittable") :
             println("purity increase is not significant")
-            return
+            return (a...) -> nothing, [[base_purity, ()]]
         else
-            bf = Int(best_feature)
-            @simd for i in 1:n_samples
-                Xf[i] = X[indX[i + r_start], bf]
-            end
+            function (node, Y, indX, (best_feature, threshold_lo, threshold_hi))
+                bf = Int(best_feature)
+                # println(size(X), size(Xf))
+                @simd for i in 1:n_samples
+                    Xf[i] = X[indX[i + r_start], bf]
+                end
 
-            try
-                node.threshold = (threshold_lo + threshold_hi) / 2.0
-            catch
-                node.threshold = threshold_hi
-            end
-            # split the samples into two parts: ones that are greater than
-            # the threshold and ones that are less than or equal to the threshold
-            #                                 ---------------------
-            # (so we partition at threshold_lo instead of node.threshold)
-            node.split_at = util.partition!(indX, Xf, threshold_lo, region)
-            treeopt && purity_function(Y, indX, region, node.split_at, cinds)
-            node.feature = best_feature
-            node.features = features[(n_const+1):n_features]
+                try
+                    node.threshold = (threshold_lo + threshold_hi) / 2.0
+                catch
+                    node.threshold = threshold_hi
+                end
+                # split the samples into two parts: ones that are greater than
+                # the threshold and ones that are less than or equal to the threshold
+                #                                 ---------------------
+                # (so we partition at threshold_lo instead of node.threshold)
+                node.split_at = util.partition!(indX, Xf, threshold_lo, region)
+                treeopt && purity_function(Y, indX, region, node.split_at, cinds)
+                node.feature = best_feature
+                node.features = features[(n_const+1):n_features]
+            end, purities
         end
-
-        return _split!
 
     end
     @inline function fork!(node::NodeMeta{S}) where S
@@ -271,6 +275,22 @@ module treeclassifier
         end
     end
 
+    Base.:(==)(x::NodeMeta, y::NodeMeta) = x.depth == y.depth && x.region == y.region && x.features == y.features 
+
+    function findnode(root, node)
+        root == node && return root
+        root.is_leaf && return
+        if isdefined(root, :l)
+            nl = findnode(root.l, node)
+            !isnothing(nl) && return nl
+        end
+        if isdefined(root, :r)
+            nr = findnode(root.r, node)
+            !isnothing(nr) && return nr
+        end
+        return nothing
+    end
+
     function _fit(
             X                     :: Matrix{S},
             Y                     :: Vector{T},
@@ -278,13 +298,13 @@ module treeclassifier
             cinds                 :: I,
             loss                  :: Function,
             n_classes             :: Int,
+            beam_width            :: Int,
             max_features          :: Int,
             max_depth             :: Int,
             min_samples_leaf      :: Int,
             min_samples_split     :: Int,
             min_purity_increase   :: Float64,
             rng=Random.GLOBAL_RNG :: Random.AbstractRNG) where {S, T, U, I}
-
         n_samples, n_features = size(X)
 
         nc  = Array{U}(undef, n_classes)
@@ -294,28 +314,50 @@ module treeclassifier
         Xf  = Array{S}(undef, n_samples)
         Yf  = Array{T}(undef, n_samples)
 
-        indX = collect(1:n_samples)
-        root = NodeMeta{S}(collect(1:n_features), 1:n_samples, 0)
-        stack = NodeMeta{S}[root]
-        @inbounds while length(stack) > 0
-            node = pop!(stack)
-            _split!(
-                X, Y, W, cinds,
-                loss, node,
-                max_features,
-                max_depth,
-                min_samples_leaf,
-                min_samples_split,
-                min_purity_increase,
-                indX,
-                nc, ncl, ncr, Xf, Yf, Wf, rng)
-            if !node.is_leaf
-                fork!(node)
-                push!(stack, node.r)
-                push!(stack, node.l)
+        Ys = [copy(Y) for i in 1:beam_width]
+        indXs = [collect(1:n_samples) for i in 1:beam_width]
+        roots = [NodeMeta{S}(collect(1:n_features), 1:n_samples, 0) for i in 1:beam_width]
+        stacks = [i == 1 ? NodeMeta{S}[roots[i]] : NodeMeta{S}[] for i in 1:beam_width]
+        purities = [[] for i in 1:beam_width]
+        updates = Any[undef for i in 1:beam_width]
+        nodes = deepcopy(roots)
+        while any(!isempty, stacks)
+            for i in 1:beam_width
+                isempty(stacks[i]) && continue
+                nodes[i] = pop!(stacks[i])
+                updates[i], purities[i] = _split!(
+                    X, Ys[i], W, cinds,
+                    loss, nodes[i],
+                    max_features,
+                    max_depth,
+                    min_samples_leaf,
+                    min_samples_split,
+                    min_purity_increase,
+                    indXs[i],
+                    nc, ncl, ncr, Xf, Yf, Wf, rng)
+            end
+            beam_purities = vcat([push!.(p, i) for (i, p) in enumerate(purities)]...)
+            beam_purities = sort(beam_purities, by = first, rev = true)[1:beam_width]
+            println("beam_purities: ", trunc.(first.(beam_purities), digits = 2))
+            Ys, indXs, roots, stacks, nodes = map(beam_purities) do (purity, conf, i)
+                root = deepcopy(roots[i])
+                node = findnode(root, nodes[i])
+                stack = [findnode(root, node′) for node′ in stacks[i]]
+                @assert !isnothing(node) && all(!isnothing, stack)
+                Y′, indX = copy(Ys[i]), copy(indXs[i])
+                updates[i](node, Y′, indX, conf)
+                return Y′, indX, root, stack, node
+            end |> z -> collect.(zip(z...))
+            for i in 1:beam_width
+                if !nodes[i].is_leaf
+                    fork!(nodes[i])
+                    push!(stacks[i], nodes[i].r)
+                    push!(stacks[i], nodes[i].l)
+                end
             end
         end
-
+        root, indX = roots[1], indXs[1]
+        copyto!(Y, Ys[1])
         return (root, indX)
     end
 
@@ -325,6 +367,7 @@ module treeclassifier
             Y                     :: Vector{T},
             W                     :: Union{Nothing, Vector{U}},
             cinds                 :: I,
+            beam_width            :: Int,
             max_features          :: Int,
             max_depth             :: Int,
             min_samples_leaf      :: Int,
@@ -349,10 +392,12 @@ module treeclassifier
             min_samples_split,
             min_purity_increase)
 
+        @eval Main yy = $Y
         root, indX = _fit(
             X, Y_, W, cinds,
             purity_function,
             length(list),
+            beam_width,
             max_features,
             max_depth,
             min_samples_leaf,
