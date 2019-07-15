@@ -243,7 +243,11 @@ function build_forest(
             purity_function = purity_function)
     end
 
-    Ensemble{S, T}(forest)
+    if n_trees == 1
+        return Ensemble{S, T}([forest])
+    else
+        return Ensemble{S, T}(forest)
+    end
 end
 
 function apply_forest(forest::Ensemble{S, T}, features::Vector{S}) where {S, T}
