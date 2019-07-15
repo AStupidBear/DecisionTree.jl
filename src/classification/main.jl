@@ -256,12 +256,7 @@ function apply_forest(forest::Ensemble{S, T}, features::Vector{S}) where {S, T}
     for i in 1:n_trees
         votes[i] = apply_tree(forest.trees[i], features)
     end
-
-    if T <: Float64
-        return mean(votes)
-    else
-        return round(T, mean(votes))
-    end
+    mean(votes)
 end
 
 function apply_forest(forest::Ensemble{S, T}, features::Matrix{S}) where {S, T}
