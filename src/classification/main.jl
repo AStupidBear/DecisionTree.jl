@@ -261,7 +261,7 @@ end
 
 function apply_forest(forest::Ensemble{S, T}, features::Matrix{S}) where {S, T}
     N = size(features,1)
-    predictions = Array{T}(undef, N)
+    predictions = Array{Float32}(undef, N)
     for i in 1:N
         predictions[i] = apply_forest(forest, features[i, :])
     end
