@@ -336,7 +336,7 @@ module treeclassifier
                     nc, ncl, ncr, Xf, Yf, Wf, rng)
             end
             beam_purities = vcat([push!.(p, i) for (i, p) in enumerate(purities)]...)
-            beam_purities = sort(beam_purities, by = first, rev = true)[1:beam_width]
+            beam_purities = sort(beam_purities, by = first, rev = true)[1:min(end, beam_width)]
             beam_width > 1 && println("beam_purities: ", first.(beam_purities))
             Ys, indXs, roots, stacks, nodes = map(beam_purities) do (purity, conf, i)
                 root = deepcopy(roots[i])
