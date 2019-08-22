@@ -321,7 +321,7 @@ module treeclassifier
         updates = Any[undef for i in 1:beam_width]
         nodes = deepcopy(roots)
         while any(!isempty, stacks)
-            for i in 1:beam_width
+            for i in 1:min(beam_width, length(nodes))
                 isempty(stacks[i]) && continue
                 nodes[i] = pop!(stacks[i])
                 updates[i], purities[i] = _split!(
@@ -347,7 +347,7 @@ module treeclassifier
                 updates[i](node, Y′, indX, conf)
                 return Y′, indX, root, stack, node
             end |> z -> collect.(zip(z...))
-            for i in 1:beam_width
+            for i in 1:min(beam_width, length(nodes))
                 if !nodes[i].is_leaf
                     fork!(nodes[i])
                     push!(stacks[i], nodes[i].r)
