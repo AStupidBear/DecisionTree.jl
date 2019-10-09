@@ -1,6 +1,5 @@
-*.csv
 styleguide.txt
 makefile
 .DS_Store
-.remote-sync.json
 .vscode
+Manifest.toml
